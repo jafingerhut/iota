@@ -18,8 +18,16 @@ I wanted to be able to use Clojure reducers against large text files to speed up
 
 ## Details
 
-Iota offers iota/seq and iota/vec for two different use cases.  
-Both treat a line, as delimited by a byte separator (default is newline), as an element.
+Iota offers `iota/seq` and `iota/vec` for two different use cases.
+Both treat a line as delimited by a byte separator (default is newline, value 10 decimal), as an element.
+
+Note that this is slightly different than Clojure's
+[`line-seq`](https://clojuredocs.org/clojure.core/line-seq).
+`line-seq` uses Java's
+[`readLine()`](https://docs.oracle.com/javase/8/docs/api/java/io/BufferedReader.html#readLine--)
+method, which is hard-coded to treat any of a newline, or a carriage
+return, or a carriage return followed immediately by a newline, as a
+line separator.
 
 Differences | iota/seq | iota/vec
 --- | --- | ---
@@ -69,6 +77,21 @@ Via reducers | Buffer is divided in half repeatedly until it is smaller than spe
 
 ## Known issues;
 * Records must be delimited by a single byte value, hence 2 Byte encodings like UTF-16 and UCS-2 can't be parsed correctly.
+* If any consecutive record separator bytes (default ASCII newline)
+  are separated by more than `Integer/MAX_VALUE` = 2**31-1 =
+  2,147,483,647 bytes in the file, probably something wrong will
+  happen.  The separation distance will be truncated to fit into a
+  32-bit signed Java `int` (perhaps negative), and that number of
+  bytes will be used instead, perhaps causing fewer bytes to be
+  converted in the returned string, or perhaps causing a
+  [`NegativeArraySizeException`](https://docs.oracle.com/javase/8/docs/api/java/lang/NegativeArraySizeException.html)
+  to be thrown.
+* Each sequence of bytes between record separators will be converted
+  to a Java String by treating it as if it is encoded in UTF-8.  This
+  might cause an `UnsupportedEncodingException` to be thrown, which
+  the iota library will catch internally and discard, with no
+  indication to the caller that this happened.  The string returned in
+  such cases is undefined.
 
 
 ## Artifacts
