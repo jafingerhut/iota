@@ -79,19 +79,29 @@ Via reducers | Buffer is divided in half repeatedly until it is smaller than spe
 * Records must be delimited by a single byte value, hence 2 Byte encodings like UTF-16 and UCS-2 can't be parsed correctly.
 * If any consecutive record separator bytes (default ASCII newline)
   are separated by more than `Integer/MAX_VALUE` = 2**31-1 =
-  2,147,483,647 bytes in the file, probably something wrong will
-  happen.  The separation distance will be truncated to fit into a
-  32-bit signed Java `int` (perhaps negative), and that number of
-  bytes will be used instead, perhaps causing fewer bytes to be
-  converted in the returned string, or perhaps causing a
+  2,147,483,647 bytes in the file, something wrong will happen.  The
+  separation distance will be truncated to fit into a 32-bit signed
+  Java `int` (perhaps negative), and that number of bytes will be used
+  instead, perhaps causing fewer bytes to be converted in the returned
+  string, or perhaps causing a
   [`NegativeArraySizeException`](https://docs.oracle.com/javase/8/docs/api/java/lang/NegativeArraySizeException.html)
   to be thrown.
+* If record separators are up to 2,147,483,647 bytes apart in the
+  file, iota will attempt to create strings that are the UTF-8
+  decoding of those long byte sequences, which may exhaust memory.
+  Clojure's `line-seq` will do this for long lines, too.
 * Each sequence of bytes between record separators will be converted
-  to a Java String by treating it as if it is encoded in UTF-8.  This
-  might cause an `UnsupportedEncodingException` to be thrown, which
-  the iota library will catch internally and discard, with no
-  indication to the caller that this happened.  The string returned in
-  such cases is undefined.
+  to a Java String by treating it as if it is encoded in UTF-8 using
+  [this Java `String` constructor
+  method](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html#String-byte:A-int-int-java.lang.String-).
+  If the sequence of bytes between two record separators cannot be
+  decoded as UTF-8 by this method, the string returned is undefined.
+  It appears from some testing that at least some Java implementations
+  will behave the same as [this `String`
+  constructor](https://docs.oracle.com/javase/8/docs/api/java/lang/String.html#String-byte:A-int-int-java.nio.charset.Charset-),
+  which "always replaces malformed-input and unmappable-character
+  sequences with this charset's default replacement string", which
+  appears to be a character with integer code point 65535.
 
 
 ## Artifacts
